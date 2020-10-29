@@ -2,6 +2,8 @@ var app = require('express')();
 var http = require('http').createServer(app);
 var io = require('socket.io')(http);
 
+
+
 app.get('/',(req,res,next)=>{
     res.send('Hello World');
 });
@@ -16,14 +18,19 @@ io.on('connection', (socket) => {
         console.log('message: ' + msg);
         io.emit('chat message', msg+' received');
     });
+    socket.on('socketId',(id)=>{
+        console.log('id: '+id);
+    });
 
     socket.on('join room',(room)=>{
         socket.join(room);
         console.log('joined '+room);
         socket.on('offer',(data)=>{
             // io.sockets.in(room).emit('event',data);
-            console.log('offer in server '+room+': '+data);
-            socket.broadcast.to(room).emit('receiveOffer',data);
+            var offerObj = JSON.parse(data);
+            console.log('offer from id: '+offerObj.socketId);
+            console.log('offer in server '+room+': '+offerObj.offer);
+            socket.broadcast.to(room).emit('receiveOffer',offerObj.offer);
         });
         socket.on('answer',(data)=>{
             console.log('answer in server '+room+': '+data);
