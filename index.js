@@ -2,6 +2,8 @@ var app = require('express')();
 var http = require('http').createServer(app);
 var io = require('socket.io')(http);
 
+var rooms = {};
+
 
 
 app.get('/',(req,res,next)=>{
@@ -9,10 +11,7 @@ app.get('/',(req,res,next)=>{
 });
 
 io.on('connection', (socket) => {
-    console.log('a user connected');
-    socket.on('disconnect', () => {
-        console.log('user disconnected');
-    });
+    console.log(socket.id+' user connected');
 
     socket.on('msg', (msg) => {
         console.log('message: ' + msg);
@@ -20,25 +19,63 @@ io.on('connection', (socket) => {
     });
     socket.on('socketId',(id)=>{
         console.log('id: '+id);
+        rooms.push(id);
+        console.log(users);
     });
+    
+    // user joining room
+    socket.on('join room',(data)=>{
 
-    socket.on('join room',(room)=>{
-        socket.join(room);
-        console.log('joined '+room);
+        var dataObj = JSON.parse(data);
+        var room = dataObj.room;
+        socket.join(dataObj.room);
+        socket.broadcast.to(dataObj.room).emit('newUser',socket.id);
+        // socket.broadcast.to(dataObj.room).emit('userDisconnectedd',socket.id);
+
+        socket.on('disconnect', () => {
+            console.log(socket.id+' user disconnected');
+            var rm = dataObj.room;
+            var socketId = dataObj.socketId;
+            const index = rooms[rm].indexOf(socketId);
+            console.log(index);
+            if (index > -1) {
+                console.log(rooms[rm]);
+                rooms[rm].splice(index, 1);
+            }
+            if(rooms[rm].length == 0){
+                delete rooms[rm];
+            }
+            console.log(rooms);
+            socket.broadcast.to(dataObj.room).emit('userDisconnectedd',socket.id);
+        });
+
+
+        var rm = dataObj.room;
+        if(!rooms.hasOwnProperty(dataObj.room)){
+            rooms[rm] = [dataObj.socketId];
+        }
+        else{
+            rooms[rm].push(dataObj.socketId);
+        }
+        console.log(rooms);
+
         socket.on('offer',(data)=>{
             // io.sockets.in(room).emit('event',data);
             var offerObj = JSON.parse(data);
-            console.log('offer from id: '+offerObj.socketId);
-            console.log('offer in server '+room+': '+offerObj.offer);
-            socket.broadcast.to(room).emit('receiveOffer',offerObj.offer);
+            console.log('offer in server: '+data);
+            // socket.broadcast.to(room).emit('receiveOffer',offerObj.offer);
+            io.sockets.to(offerObj.toSocketId).emit('receiveOffer',data);
         });
         socket.on('answer',(data)=>{
+            var answerObj = JSON.parse(data);
             console.log('answer in server '+room+': '+data);
-            socket.broadcast.to(room).emit('receiveAnswer',data);
+
+            io.sockets.to(answerObj.toSocketId).emit('receiveAnswer',data);
         });
         socket.on('candidate',(data)=>{
-            console.log('answer in server '+room+': '+data);
-            socket.broadcast.to(room).emit('receiveCandidate',data);
+            var candObj = JSON.parse(data);
+            console.log('candidate in server '+room+': '+data);
+            io.sockets.to(candObj.toSocketId).emit('receiveCandidate',data);
         });
     });
 
