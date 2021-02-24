@@ -29,13 +29,15 @@ io.on('connection', (socket) => {
         var dataObj = JSON.parse(data);
         var room = dataObj.room;
         socket.join(dataObj.room);
-        socket.broadcast.to(dataObj.room).emit('newUser',socket.id);
+        socket.broadcast.to(rooms[dataObj.room]).emit('newUser',socket.id);
+        io.sockets.to(socket.id).emit('getSocketId',socket.id);
         // socket.broadcast.to(dataObj.room).emit('userDisconnectedd',socket.id);
 
         socket.on('disconnect', () => {
             console.log(socket.id+' user disconnected');
             var rm = dataObj.room;
-            var socketId = dataObj.socketId;
+            console.log(rm);
+            var socketId = socket.id;
             const index = rooms[rm].indexOf(socketId);
             console.log(index);
             if (index > -1) {
@@ -52,10 +54,10 @@ io.on('connection', (socket) => {
 
         var rm = dataObj.room;
         if(!rooms.hasOwnProperty(dataObj.room)){
-            rooms[rm] = [dataObj.socketId];
+            rooms[rm] = [socket.id];
         }
         else{
-            rooms[rm].push(dataObj.socketId);
+            rooms[rm].push(socket.id);
         }
         console.log(rooms);
 
